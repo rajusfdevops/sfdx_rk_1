@@ -1,0 +1,42 @@
+name: Retrieve and Deploy Metadata Using package.xml
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'force-app/**'
+
+jobs:
+  Retrieve-and-Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Set up Node.js
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Step 2: Checkout source code
+      - name: 'Checkout source code'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: '2'
+
+      # Step 3: Install Salesforce CLI
+      - name: 'Install Salesforce CLI'
+        run: npm install @salesforce/cli --global
+
+      # Step 4: Authenticate to Dev1 and retrieve metadata using package.xml
+      - name: Authenticate to Dev1 and retrieve metadata
+        run: |
+          echo "${{ secrets.JWT_SERVER_KEY }}" > server.key
+          sf org login jwt --username ${{ secrets.DEV1_USERNAME }} --jwt-key-file server.key --client-id ${{ secrets.DEV1_CLIENT_ID }} --instance-url https://test.salesforce.com --set-default
+          sf project retrieve start --manifest manifest/package.xml
+          echo "[INFO] Metadata retrieved from Dev1"
+
+      # Step 5: Authenticate to Test1 and deploy metadata using package.xml
+      - name: Deploy Metadata to Test1
+        run: |
+          echo "${{ secrets.JWT_SERVER_KEY }}" > server.key
+          sf org login jwt --username ${{ secrets.TEST1_USERNAME }} --jwt-key-file server.key --client-id ${{ secrets.TEST1_CLIENT_ID }} --instance-url https://test.salesforce.com --set-default
+          sf project deploy start --manifest manifest/package.xml --test-level RunLocalTests
+          echo "[INFO] Metadata deployed to Test1"
